@@ -11,12 +11,12 @@ namespace ClipboardIntercept.Common
         private readonly ILogger<ClipboardInterceptMonitor> _logger;
         private readonly CancellationToken _cancellationToken;
 
-        public ClipboardInterceptMonitor(IBackgroundTaskQueue queue,
+        public ClipboardInterceptMonitor(ITaskQueueProvider taskQueueProvider,
             ILogger<ClipboardInterceptMonitor> logger,
             IFileWriteConfigurationService fileWriteConfigurationService,
             IHostApplicationLifetime applicationLifetime)
         {
-            _queue = queue;
+            _queue = taskQueueProvider.GetTaskQueue(typeof(ClipboardQueue));
             _logger= logger;
             _fileWriteConfigurationService= fileWriteConfigurationService;
             _cancellationToken = applicationLifetime.ApplicationStopping;
@@ -59,60 +59,15 @@ namespace ClipboardIntercept.Common
             if (ReferenceEquals(fi, null))
                 throw new ArgumentOutOfRangeException($"Invalid file name for {nameof(writeConfig.FilePath)}.");
 
+            var fw = new FileWriteUtility();
+
             //write all new clips to to the top of a file
-            await InsertTextToTop(writeConfig.FilePath, clip);
+            await fw.InsertTextToTop(writeConfig.FilePath, clip);
 
             //trim the file to specified size to keep a rolling log of clips
-            await TrimFile(writeConfig.FilePath, writeConfig.FileSizeBytes);
+            await fw.TrimFileBottom(writeConfig.FilePath, writeConfig.FileSizeBytes);
         }
 
-        private async Task InsertTextToTop(string path, string newText)
-        {
-            //if there is no existing file write text directly to new file
-            if (!File.Exists(path))
-            {
-                await File.WriteAllTextAsync(path, newText);
-                return;
-            }
-            //path validity check
-            var pathDir = Path.GetDirectoryName(path);
-            if(String.IsNullOrEmpty(pathDir))
-                throw new Exception ($"{pathDir} does not exist");
-
-
-            var tempPath = Path.Combine(pathDir, Guid.NewGuid().ToString("N"));
-            //write new text to a temp file followed by end line terminator
-            {
-                using var stream = new FileStream(tempPath, FileMode.Create,
-                    FileAccess.Write, FileShare.None, 4 * 1024 * 1024);
-                using var sw = new StreamWriter(stream);
-                await sw.WriteLineAsync(newText);
-                sw.Flush();
-
-                //copy the contents of the current clip file to the new temp file
-                using var old = File.OpenRead(path);
-                await old.CopyToAsync(sw.BaseStream);
-            }
-
-            //replace old file with the new temp one created
-            File.Delete(path);
-            File.Move(tempPath, path);
-        }
-        private async Task TrimFile(string filename, long bytes)
-        {
-            var fileSize = (new System.IO.FileInfo(filename)).Length;
-
-            if (fileSize > bytes)
-            {
-                var text = await File.ReadAllTextAsync(filename);
-
-                var amountToKeep = (int)(text.Length * 0.9);
-                amountToKeep = text.IndexOf('\n', amountToKeep);
-                var trimmedText = text.Substring(0, amountToKeep + 1);
-
-                await File.WriteAllTextAsync(filename, trimmedText);
-            }
-        }
 
     }
 }

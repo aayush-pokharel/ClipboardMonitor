@@ -1,40 +1,36 @@
 ﻿using ClipboardIntercept.Common.Interfaces;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace ClipboardIntercept.Common
+
+namespace ClipboardIntercept.Common.Logging
 {
-    public class ClipboardQueueService : BackgroundService
+    public class LoggerQueueService : Microsoft.Extensions.Hosting.BackgroundService
     {
         private readonly IBackgroundTaskQueue _taskQueue;
-        private readonly ILogger<ClipboardQueueService> _logger;
-        private ClipboardInterceptMonitor _monitor;
-
-        public ClipboardQueueService(
+        private readonly ILogger<LoggerQueueService> _logger;
+        public LoggerQueueService(
             ITaskQueueProvider taskQueueProvider,
-            ClipboardInterceptMonitor monitor,
-            ILogger<ClipboardQueueService> logger)
+            ILogger<LoggerQueueService> logger,
+            IConfiguration configuration)
         {
-            _taskQueue = taskQueueProvider.GetTaskQueue(typeof(ClipboardQueue));
-            _monitor = monitor;
+            _taskQueue = taskQueueProvider.GetTaskQueue(typeof(LoggerQueue));
             _logger = logger;
+            _logger.LogInformation($"FilePath for file write: {configuration.GetSection("FileWriteConfiguration:FilePath").Value}");
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation(
-                $"{nameof(ClipboardQueueService)} is running.{Environment.NewLine}");
-
-
-            _monitor.StartMonitor();
+                $"{nameof(LoggerQueueService)} is running.{Environment.NewLine}");
 
             return ProcessTaskQueueAsync(stoppingToken);
         }
-
         private async Task ProcessTaskQueueAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                //locking here because the file is a shared resurce
                 try
                 {
                     Func<CancellationToken, ValueTask>? workItem =
@@ -50,13 +46,15 @@ namespace ClipboardIntercept.Common
                 {
                     _logger.LogError(ex, "Error occurred executing task work item.");
                 }
+                finally { 
+                }
             }
         }
 
         public override async Task StopAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation(
-                $"{nameof(ClipboardQueueService)} is stopping.");
+                $"{nameof(LoggerQueueService)} is stopping.");
 
             await base.StopAsync(stoppingToken);
         }
