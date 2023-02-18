@@ -44,10 +44,6 @@ using IHost host = Host.CreateDefaultBuilder(args)
             //Add logger configurations here
         })
     )
-    .UseWindowsService(options =>
-    {
-        options.ServiceName = "Clipboard Monitor"; 
-    })
     .Build();
 
 await host.RunAsync();
