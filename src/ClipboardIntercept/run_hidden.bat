@@ -1,0 +1,1 @@
+powershell "start run.bat -WindowStyle Hidden"

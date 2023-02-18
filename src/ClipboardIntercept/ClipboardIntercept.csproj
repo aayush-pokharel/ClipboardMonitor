@@ -19,4 +19,13 @@
   <ItemGroup>
     <ProjectReference Include="..\ClipboardIntercept.Common\ClipboardIntercept.Common.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="run.bat">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="run_hidden.bat">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

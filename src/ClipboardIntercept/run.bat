@@ -1,0 +1,1 @@
+.\ClipboardIntercept.exe
